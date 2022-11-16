@@ -1,5 +1,8 @@
 # For reading in data, cleaning data, and splitting data
-import nltk
+import nltk.data
+from string import punctuation
+
+tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
 
 class Joke:
     def __init__(self, joke):
@@ -7,13 +10,23 @@ class Joke:
             joke = joke[:joke.find('Edit:')]
         if joke.find('EDIT:') != -1:
             joke = joke[:joke.find('EDIT:')]
-        self.joke = joke
-        parts = self.joke.split('_____')
-        self.body = parts[0]
-        self.punchline = parts[1]
-        if self.punchline.startswith(self.body):
-            self.punchline = self.punchline[len(self.body):] # Remove title from reddit post body
-        # TODO: Split into body and punchline via last sentence rather than "_____"
+        
+        reddit_parts = joke.split('_____')
+        reddit_title = reddit_parts[0]
+        reddit_body = reddit_parts[1]
+        # add punctuation if title does not end with punctuation
+        # this is a hacky approach because not every title should end with a period
+        if not reddit_title.endswith(tuple(punctuation)):
+            reddit_title = reddit_title + '.'
+        if reddit_body.startswith(reddit_title):
+            reddit_body = reddit_body[len(reddit_title):] # Remove title from reddit post body
+        self.joke = reddit_title + " " + reddit_body
+        
+        tokenized_joke = tokenizer.tokenize(self.joke)
+        # body: every sentence except the last one
+        self.body = " ".join(tokenized_joke[:-1])
+        # punchline: last sentence
+        self.punchline = tokenized_joke[-1]
 
     def __str__(self):
         return 'BODY: ' + self.body + '\nPUNCHLINE: ' + self.punchline + '\n'
