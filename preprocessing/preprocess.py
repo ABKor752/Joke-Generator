@@ -1,11 +1,18 @@
 # For reading in data, cleaning data, and splitting data
+import nltk
 
 class Joke:
     def __init__(self, joke):
+        if joke.find('Edit:') != -1:
+            joke = joke[:joke.find('Edit:')]
+        if joke.find('EDIT:') != -1:
+            joke = joke[:joke.find('EDIT:')]
         self.joke = joke
-        parts = joke.split('_____')
+        parts = self.joke.split('_____')
         self.body = parts[0]
         self.punchline = parts[1]
+        if self.punchline.startswith(self.body):
+            self.punchline = self.punchline[len(self.body):] # Remove title from reddit post body
         # TODO: Split into body and punchline via last sentence rather than "_____"
 
     def __str__(self):
@@ -18,7 +25,7 @@ def read_tsv(filename):
         funny = []
         unfunny = []
         for line in f:
-            line = line.split(',', 3)
+            line = line.replace('"', '').replace('”', '').replace('“', '').split(',', 3)
             if len(line[3]) >= 10 and (line[3][-10:-1] == '[removed]' or line[3][-10:-1] == '[deleted]'):
                 continue # Ignore reddit posts that have been removed
             if (line[1] == "0"):
@@ -32,5 +39,6 @@ def read_tsv(filename):
 
 if __name__ == '__main__':
     funny, unfunny = read_tsv('../datasets/data/reddit_full/train.tsv')
+    print(len(funny), len(unfunny))
     for joke in funny:
         print(joke)
