@@ -10,6 +10,8 @@ class Joke:
             joke = joke[:joke.find('Edit:')]
         if joke.find('EDIT:') != -1:
             joke = joke[:joke.find('EDIT:')]
+        if joke.find('edit:') != -1:
+            joke = joke[:joke.find('EDIT:')]
         
         reddit_parts = joke.split('_____')
         reddit_title = reddit_parts[0]
@@ -38,7 +40,7 @@ def read_tsv(filename):
         funny = []
         unfunny = []
         for line in f:
-            line = line.replace('"', '').replace('”', '').replace('“', '').split(',', 3)
+            line = line.replace('"', '').replace('”', '').replace('“', '').replace('&#x200B;', '').replace('&nbsp;', ' ').split(',', 3)
             if len(line[3]) >= 10 and (line[3][-10:-1] == '[removed]' or line[3][-10:-1] == '[deleted]'):
                 continue # Ignore reddit posts that have been removed
             if (line[1] == "0"):
@@ -54,4 +56,5 @@ if __name__ == '__main__':
     funny, unfunny = read_tsv('../datasets/data/reddit_full/train.tsv')
     print(len(funny), len(unfunny))
     for joke in funny:
-        print(joke)
+        if joke.body.find('&nbsp;') != -1 or joke.punchline.find('&nbsp;') != -1:
+            print(joke)
