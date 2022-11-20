@@ -69,13 +69,21 @@ if __name__ == '__main__':
     with open('../datasets/data/reddit_preprocessed/funny.tsv', 'w') as f:
         w = writer(f, delimiter='\t')
         w.writerow(fields)
-
+        num = 0
         for joke in funny:
-            w.writerow(joke)
+            if joke[0] != "":
+                w.writerow(joke)
+            else:
+                num += 1
+        print('There were ' + str(num) + ' funny jokes with empty bodies')
 
     with open('../datasets/data/reddit_preprocessed/unfunny.tsv', 'w') as f:
         w = writer(f, delimiter='\t')
         w.writerow(fields)
-
+        num = 0
         for joke in unfunny:
-            w.writerow(joke)
+            if joke[0] != "":
+                w.writerow(joke)
+            else:
+                num += 1
+        print('There were ' + str(num) + ' unfunny jokes with empty bodies')

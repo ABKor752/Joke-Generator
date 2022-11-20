@@ -2,20 +2,20 @@ from transformers import AutoTokenizer, DataCollatorForSeq2Seq, AutoModelForSeq2
 from datasets import load_dataset
 import pprint
 
+tokenizer = AutoTokenizer.from_pretrained("gpt2")
+tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+
 def load_data():
-    def preprocess_function(examples):
-        # body = [[body]]
-        #tokenized_examples = tokenizer(body, punchline)
-        pass
-        # tokenize both and then 
+    def tokenize_function(examples):
+        tokenized_examples = tokenizer(examples['body'], examples['punchline'], padding='max_length', truncation=True)
+        return tokenized_examples
 
 
     # funny_data_files = {"train": "funny_train.tsv", "test" : "funny_val.tsv"}
     # blergh = load_dataset("../datasets/data/reddit_full", data_files=funny_data_files)
     funny_train = load_dataset("csv", data_files="datasets/data/reddit_preprocessed/funny.tsv", delimiter='\t')
-    print(funny_train)
-    pp = pprint.PrettyPrinter(indent=4)
-    pp.pprint(funny_train["train"][:2])
+    tokenized_datasets = funny_train.map(tokenize_function, batched=True)
+    print(tokenized_datasets)
 
 if __name__ == '__main__':
     load_data()
