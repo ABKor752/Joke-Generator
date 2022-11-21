@@ -9,32 +9,42 @@ import evaluate
 
 SEED=595
 
-tokenizer = AutoTokenizer.from_pretrained("gpt2")
-tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+tokenizer = AutoTokenizer.from_pretrained("t5-base")
+# TODO: switch to MVP for Great Lakes
+# tokenizer = AutoTokenizer.from_pretrained("RUCAIBox/mvp")
+# tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+# print('\nvocab size: ' +  str(tokenizer.vocab_size) + '\n' )
 
 device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
 
 def load_data():
     def tokenize_function(examples):
-        tokenized_examples = tokenizer(examples['body'], examples['punchline'], padding='max_length', truncation=True, return_tensors='pt')
+        tokenized_examples = tokenizer(examples['body'], text_target=examples['punchline'], padding='max_length', truncation=True, return_tensors='pt')
         return tokenized_examples
 
 
     # funny_data_files = {"train": "funny_train.tsv", "test" : "funny_val.tsv"}
     # blergh = load_dataset("../datasets/data/reddit_full", data_files=funny_data_files)
-    funny_train = load_dataset("csv", data_files="datasets/data/reddit_preprocessed/funny.tsv", delimiter='\t')
-    funny_test = load_dataset("csv", data_files="datasets/data/reddit_preprocessed/test_funny.tsv", delimiter='\t', split='test')
+    funny_train = load_dataset("csv", data_files="datasets/data/reddit_preprocessed/funny.tsv", delimiter='\t', split='train[5:10]')
+    funny_test = load_dataset("csv", data_files="datasets/data/reddit_preprocessed/test_funny.tsv", delimiter='\t', split='train[5:10]')
+    
+    # funny_train = load_dataset("csv", data_files="datasets/data/reddit_preprocessed/funny.tsv", delimiter='\t', split='train')
+    # funny_test = load_dataset("csv", data_files="datasets/data/reddit_preprocessed/test_funny.tsv", delimiter='\t', split='train')
+    
     # print(funny_train, funny_test)
-    tokenized_datasets = funny_train.map(tokenize_function, batched=True)
-    tokenized_datasets.set_format("torch")
 
-    test_dataset = funny_test.map(tokenize_function, batched=True)
-    test_dataset.set_format("torch")
 
-    train_dataloader = DataLoader(tokenized_datasets["train"].shuffle(seed=SEED), shuffle=True, batch_size=500)
-    test_dataloader = DataLoader(tokenized_datasets["train"], batch_size=500) #TODO: combine tokenized datasets and dataloaders?
-    print(train_dataloader)
-    return train_dataloader, test_dataloader
+    tokenized_train = funny_train.map(tokenize_function, batched=True)
+    tokenized_train.set_format("torch")
+
+    tokenized_test = funny_test.map(tokenize_function, batched=True)
+    tokenized_test.set_format("torch")
+
+    # train_dataloader = DataLoader(tokenized_datasets["train"].shuffle(seed=SEED), shuffle=True, batch_size=500)
+    # test_dataloader = DataLoader(tokenized_datasets["train"], batch_size=500) #TODO: combine tokenized datasets and dataloaders?
+    # print(train_dataloader)
+    # print(tokenized_test['body'])
+    return tokenized_train, tokenized_test
 
 # def train(model, train_dataloader):
 #     num_training_steps = 2 * len(train_dataloader)
@@ -65,26 +75,33 @@ def load_data():
 #     return model
 
 def main():
-    train_dataloader, test_dataloader = load_data()
-    model = AutoModelForSeq2SeqLM.from_pretrained("t5-small")
+    tokenized_train, tokenized_test = load_data()
+    model = AutoModelForSeq2SeqLM.from_pretrained("t5-base")
+    # TODO: switch to MVP for Great Lakes
+    # model = AutoModelForSeq2SeqLM.from_pretrained("RUCAIBox/mvp")
+    # print(model)
     model.to(device)
     data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer, model=model)
     training_args = Seq2SeqTrainingArguments(
         output_dir="./results",
         evaluation_strategy="epoch",
         learning_rate=2e-5,
-        per_device_train_batch_size=16,
-        #per_device_eval_batch_size=16,
+        # TODO: increase for Great Lakes
+        per_device_train_batch_size=1,
+        per_device_eval_batch_size=1,
         weight_decay=0.01,
         save_total_limit=3,
-        num_train_epochs=2,
-        fp16=True,
+        # num_train_epochs=2,
+        num_train_epochs=1,
+        # removing the below because this crashes if CUDA is not set up in a specific manner
+        # fp16=True,
     )
     trainer = Seq2SeqTrainer(
         model=model,
         args=training_args,
-        train_dataset=train_dataloader["train"],
-        #eval_dataset=tokenized_books["test"],
+        train_dataset=tokenized_train,
+        # TODO: put an actual eval dataset here that isn't same as test
+        eval_dataset=tokenized_test,
         tokenizer=tokenizer,
         data_collator=data_collator,
     )
@@ -92,11 +109,31 @@ def main():
     trainer.train()
 
     metric = evaluate.load("bleu")
-    bodies = test_dataloader['train']['body']
-    references = test_dataloader['train']['punchline']
-    predictions = [model(body) for body in bodies]
-    results = metric.compute(predictions=predictions, references=references)
-    print('Bleu score: ' + str(results.bleu))
+
+    # print(tokenized_test['body'])
+    # bodies = tokenized_test['body']
+    # references = tokenized_test['punchline']
+    # predictions = [model(body) for body in bodies]
+    # results = metric.compute(predictions=predictions, references=references)
+    model.eval()
+    all_predictions = []
+
+    # copy-pasted from hw3 and probably incorrect because of that
+    test_dataloader = DataLoader(tokenized_test, batch_size=1, collate_fn=DataCollatorForSeq2Seq(tokenizer=tokenizer, model=model))
+    for batch in test_dataloader:
+        print(batch)
+        batch = {k: v.to(device) for k, v in batch.items()}
+        with torch.no_grad():
+            outputs = model(**batch)
+        logits = outputs.logits
+        predictions = torch.argmax(logits, dim=-1)
+        all_predictions.extend(list(predictions))
+        # this may have to be label instead
+        metric.add_batch(predictions=predictions, references=batch["labels"])
+
+    score = metric.compute()
+    # print('Test Accuracy:', score['accuracy'])
+    print('Bleu score: ', score['bleu'])
 
 
 
