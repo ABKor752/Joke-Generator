@@ -63,10 +63,10 @@ def read_tsv(filename):
 # Further preprocessing: punctuation, split body and punchline?
 
 if __name__ == '__main__':
-    funny, unfunny = read_tsv('../datasets/data/reddit_full/train.tsv')
+    funny, unfunny = read_tsv('../datasets/data/reddit_full/test.tsv')
     # print(len(funny), len(unfunny))
     fields = ['body', 'punchline']
-    with open('../datasets/data/reddit_preprocessed/funny.tsv', 'w') as f:
+    with open('../datasets/data/reddit_preprocessed/test_funny.tsv', 'w') as f:
         w = writer(f, delimiter='\t')
         w.writerow(fields)
         num = 0
@@ -77,7 +77,7 @@ if __name__ == '__main__':
                 num += 1
         print('There were ' + str(num) + ' funny jokes with empty bodies')
 
-    with open('../datasets/data/reddit_preprocessed/unfunny.tsv', 'w') as f:
+    with open('../datasets/data/reddit_preprocessed/test_unfunny.tsv', 'w') as f:
         w = writer(f, delimiter='\t')
         w.writerow(fields)
         num = 0
