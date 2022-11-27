@@ -65,6 +65,8 @@ def main(params):
     model.eval()
     all_predictions = []
 
+    torch.save(model.state_dict(), params.model_file)
+
     # TODO: unsure if we need collate_fn argument here
     test_dataloader = DataLoader(tokenized_test, batch_size=1)
     for batch in test_dataloader:
@@ -85,5 +87,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train and evaluate the joke generator model')
     parser.add_argument('--train_file', type=str)
     parser.add_argument('--test_file', type=str)
+    parser.add_argument('--model_file', type=str, default="")
     main(parser.parse_args())
 
