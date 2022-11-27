@@ -20,6 +20,7 @@ device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("
 def load_data():
     def tokenize_function(examples):
         tokenized_examples = tokenizer(examples['body'], text_target=examples['punchline'], padding='max_length', truncation=True, return_tensors='pt')
+        # print(tokenized_examples.keys())
         return tokenized_examples
 
 
@@ -35,15 +36,18 @@ def load_data():
 
 
     tokenized_train = funny_train.map(tokenize_function, batched=True)
+    # tokenized_train = tokenized_train.remove_columns(["body", "punchline"])
     tokenized_train.set_format("torch")
 
     tokenized_test = funny_test.map(tokenize_function, batched=True)
+    # tokenized_test = tokenized_test.remove_columns(["body", "punchline"])
     tokenized_test.set_format("torch")
 
     # train_dataloader = DataLoader(tokenized_datasets["train"].shuffle(seed=SEED), shuffle=True, batch_size=500)
     # test_dataloader = DataLoader(tokenized_datasets["train"], batch_size=500) #TODO: combine tokenized datasets and dataloaders?
     # print(train_dataloader)
     # print(tokenized_test['body'])
+    print(tokenized_test)
     return tokenized_train, tokenized_test
 
 # def train(model, train_dataloader):
@@ -119,17 +123,34 @@ def main():
     all_predictions = []
 
     # copy-pasted from hw3 and probably incorrect because of that
-    test_dataloader = DataLoader(tokenized_test, batch_size=1, collate_fn=DataCollatorForSeq2Seq(tokenizer=tokenizer, model=model))
+    # test_dataloader = DataLoader(tokenized_test, batch_size=1, collate_fn=DataCollatorForSeq2Seq(tokenizer=tokenizer, model=model))
+    test_dataloader = DataLoader(tokenized_test, batch_size=1)
     for batch in test_dataloader:
+        # print(type(batch))
         print(batch)
-        batch = {k: v.to(device) for k, v in batch.items()}
+        # print(batch.items())
+        # for k, v in batch.items():
+        #    print(type(k), k)
+        #    print(type(v), v)
+        # batch = {k: v.to(device) for k, v in batch.items()}
+        batch_input = {k: v.to(device) for k, v in batch.items() if not isinstance(v, list)}
+        print(batch_input)
+        # batch_references = [batch["punchline"]]
         with torch.no_grad():
-            outputs = model(**batch)
+            outputs = model(**batch_input)
         logits = outputs.logits
         predictions = torch.argmax(logits, dim=-1)
+        
+        #print(outputs)
+        #print(type(outputs))
+
+        # logits = outputs.logits
+        # predictions = torch.argmax(logits, dim=-1)
+        predictions = [tokenizer.decode(prediction) for prediction in predictions]
+        # TODO: truncate padding tokens
         all_predictions.extend(list(predictions))
         # this may have to be label instead
-        metric.add_batch(predictions=predictions, references=batch["labels"])
+        metric.add_batch(predictions=predictions, references=batch["punchline"])
 
     score = metric.compute()
     # print('Test Accuracy:', score['accuracy'])
