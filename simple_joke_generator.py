@@ -71,8 +71,7 @@ def main():
         logits = outputs.logits
         predictions = torch.argmax(logits, dim=-1)
         
-        predictions = [tokenizer.decode(prediction) for prediction in predictions]
-        # TODO: truncate padding tokens
+        predictions = [tokenizer.decode(prediction, skip_special_tokens=True) for prediction in predictions]
         all_predictions.extend(list(predictions))
         metric.add_batch(predictions=predictions, references=batch["punchline"])
 
