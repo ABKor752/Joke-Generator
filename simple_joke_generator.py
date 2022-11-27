@@ -6,6 +6,7 @@ from torch.optim import AdamW
 from tqdm.auto import tqdm
 import pprint
 import evaluate
+import argparse
 
 SEED=595
 
@@ -14,13 +15,13 @@ tokenizer = AutoTokenizer.from_pretrained("RUCAIBox/mvp")
 
 device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
 
-def load_data():
+def load_data(train_file, test_file):
     def tokenize_function(examples):
         tokenized_examples = tokenizer(examples['body'], text_target=examples['punchline'], padding='max_length', truncation=True, return_tensors='pt')
         return tokenized_examples
     
-    funny_train = load_dataset("csv", data_files="datasets/data/reddit_preprocessed/funny.tsv", delimiter='\t', split='train[1:2]')
-    funny_test = load_dataset("csv", data_files="datasets/data/reddit_preprocessed/test_funny.tsv", delimiter='\t', split='train[1:2]')
+    funny_train = load_dataset("csv", data_files=train_file, delimiter='\t', split='train[1:2]')
+    funny_test = load_dataset("csv", data_files=test_file, delimiter='\t', split='train[1:2]')
 
     tokenized_train = funny_train.map(tokenize_function, batched=True)
     tokenized_train = tokenized_train.remove_columns(["body", "punchline"])
@@ -31,8 +32,10 @@ def load_data():
 
     return tokenized_train, tokenized_test
 
-def main():
-    tokenized_train, tokenized_test = load_data()
+def main(params):
+    train_file = params.train_file
+    test_file = params.test_file
+    tokenized_train, tokenized_test = load_data(train_file, test_file)
 #     model = AutoModelForSeq2SeqLM.from_pretrained('t5-base')
     model = AutoModelForSeq2SeqLM.from_pretrained("RUCAIBox/mvp")
     model.to(device)
@@ -80,5 +83,8 @@ def main():
     print('Bleu score: ', score['bleu'])
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description='Train and evaluate the joke generator model')
+    parser.add_argument('--train_file', type=str)
+    parser.add_argument('--test_file', type=str)
+    main(parser.parse_args())
 
