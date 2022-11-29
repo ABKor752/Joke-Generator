@@ -1,4 +1,4 @@
-from transformers import AutoTokenizer, DataCollatorForSeq2Seq, AutoModelForSeq2SeqLM, Seq2SeqTrainingArguments, Seq2SeqTrainer, GPT2Tokenizer, GPT2LMHeadModel, get_scheduler
+from transformers import AutoTokenizer, DataCollatorForSeq2Seq, AutoModelForSeq2SeqLM, Seq2SeqTrainingArguments, Seq2SeqTrainer, GPT2Tokenizer, GPT2LMHeadModel, get_scheduler, BartTokenizer, BartForConditionalGeneration
 from datasets import load_dataset
 import torch
 from torch.utils.data import DataLoader
@@ -10,8 +10,10 @@ import argparse
 
 SEED=595
 
+MODEL_NAME="facebook/bart-base"
+
 # tokenizer = AutoTokenizer.from_pretrained('t5-base')
-tokenizer = AutoTokenizer.from_pretrained("RUCAIBox/mvp")
+tokenizer = BartTokenizer.from_pretrained(MODEL_NAME)
 
 device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
 
@@ -20,8 +22,8 @@ def load_data(train_file, test_file):
         tokenized_examples = tokenizer(examples['body'], text_target=examples['punchline'], padding='max_length', truncation=True, return_tensors='pt')
         return tokenized_examples
     
-    funny_train = load_dataset("csv", data_files=train_file, delimiter='\t', split='train[1:2]')
-    funny_test = load_dataset("csv", data_files=test_file, delimiter='\t', split='train[1:2]')
+    funny_train = load_dataset("csv", data_files=train_file, delimiter='\t', split='train')
+    funny_test = load_dataset("csv", data_files=test_file, delimiter='\t', split='train')
 
     tokenized_train = funny_train.map(tokenize_function, batched=True)
     tokenized_train = tokenized_train.remove_columns(["body", "punchline"])
@@ -37,18 +39,18 @@ def main(params):
     test_file = params.test_file
     tokenized_train, tokenized_test = load_data(train_file, test_file)
 #     model = AutoModelForSeq2SeqLM.from_pretrained('t5-base')
-    model = AutoModelForSeq2SeqLM.from_pretrained("RUCAIBox/mvp")
+    model = BartForConditionalGeneration.from_pretrained(MODEL_NAME)
     model.to(device)
     data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer, model=model)
     training_args = Seq2SeqTrainingArguments(
         output_dir="./results",
         evaluation_strategy="epoch",
         learning_rate=2e-5,
-        per_device_train_batch_size=4,
-        per_device_eval_batch_size=4,
+        per_device_train_batch_size=2,
+        per_device_eval_batch_size=2,
         weight_decay=0.01,
         save_total_limit=3,
-        num_train_epochs=3,
+        num_train_epochs=5,
     )
     trainer = Seq2SeqTrainer(
         model=model,
@@ -76,9 +78,12 @@ def main(params):
         logits = outputs.logits
         predictions = torch.argmax(logits, dim=-1)
         
-        predictions = [tokenizer.decode(prediction, skip_special_tokens=True) for prediction in predictions]
+        predictions = [tokenizer.decode(prediction, skip_special_tokens=True).replace('\n', '').replace('.', '') for prediction in predictions]
         all_predictions.extend(list(predictions))
-        metric.add_batch(predictions=predictions, references=batch["punchline"])
+        references = [[actual.replace('\n', '').replace('.', '')] for actual in batch["punchline"]]
+        print('Prediction: ', predictions)
+        print('Reference: ', references)
+        metric.add_batch(predictions=predictions, references=references)
 
     score = metric.compute()
     print('Bleu score: ', score['bleu'])
