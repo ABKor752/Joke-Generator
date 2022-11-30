@@ -8,12 +8,12 @@ tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
 
 class Joke:
     def __init__(self, joke):
-        if joke.find('Edit:') != -1:
-            joke = joke[:joke.find('Edit:')]
-        if joke.find('EDIT:') != -1:
+        if joke.find('Edit :') != -1:
+            joke = joke[:joke.find('Edit :')]
+        if joke.find('EDIT :') != -1:
             joke = joke[:joke.find('EDIT:')]
-        if joke.find('edit:') != -1:
-            joke = joke[:joke.find('EDIT:')]
+        if joke.find('edit :') != -1:
+            joke = joke[:joke.find('edit :')]
         
         reddit_parts = joke.split('_____')
         reddit_title = reddit_parts[0]
@@ -48,9 +48,13 @@ def read_tsv(filename):
         funny = []
         unfunny = []
         for line in f:
-            line = line.replace('"', '').replace('”', '').replace('“', '').replace('&#x200B;', '').replace('&nbsp;', ' ').split(',', 3)
+            line = line.replace('"', '').replace('”', '').replace('“', '').replace('&#x200B;', '').replace('&nbsp;', ' ').replace('’', "'").replace("‘", "'")
+            line = line.split(',', 3)
             if len(line[3]) >= 10 and (line[3][-10:-1] == '[removed]' or line[3][-10:-1] == '[deleted]'):
                 continue # Ignore reddit posts that have been removed
+            #line[3] = line[3].strip().replace('.', ' . ').replace('?', ' ? ').replace('!', ' ! ').replace(',', ' , ').replace("'", " ' ").replace(':', ' : ').replace('*', '')
+            # The above line makes each punctuation mark separated by spaces.
+            # TODO: Determine if we want that or not
             if (line[1] == "0"):
                 joke = Joke(line[3].strip())
                 unfunny.append([joke.body, joke.punchline])
