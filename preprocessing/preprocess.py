@@ -1,5 +1,6 @@
 # For reading in data, cleaning data, and splitting data
 import nltk.data
+import string
 from string import punctuation
 
 from csv import writer
@@ -52,9 +53,10 @@ def read_tsv(filename):
             line = line.split(',', 3)
             if len(line[3]) >= 10 and (line[3][-10:-1] == '[removed]' or line[3][-10:-1] == '[deleted]'):
                 continue # Ignore reddit posts that have been removed
-            #line[3] = line[3].strip().replace('.', ' . ').replace('?', ' ? ').replace('!', ' ! ').replace(',', ' , ').replace("'", " ' ").replace(':', ' : ').replace('*', '')
-            # The above line makes each punctuation mark separated by spaces.
-            # TODO: Determine if we want that or not
+            line[3] = line[3].strip()
+            for c in string.punctuation:
+                if c != '_':
+                    line[3] = line[3].replace(c, ' ' + c + ' ')
             if (line[1] == "0"):
                 joke = Joke(line[3].strip())
                 unfunny.append([joke.body, joke.punchline])
@@ -67,27 +69,21 @@ def read_tsv(filename):
 # Further preprocessing: punctuation, split body and punchline?
 
 if __name__ == '__main__':
-    funny, unfunny = read_tsv('../datasets/data/reddit_full/test.tsv')
+    funny, unfunny = read_tsv('../datasets/data/reddit_full/train.tsv')
+    test_funny, test_unfunny = read_tsv('../datasets/data/reddit_full/test.tsv')
     # print(len(funny), len(unfunny))
     fields = ['body', 'punchline']
-    with open('../datasets/data/reddit_preprocessed/test_funny.tsv', 'w') as f:
-        w = writer(f, delimiter='\t')
-        w.writerow(fields)
-        num = 0
-        for joke in funny:
-            if joke[0] != "":
-                w.writerow(joke)
-            else:
-                num += 1
-        print('There were ' + str(num) + ' funny jokes with empty bodies')
-
-    with open('../datasets/data/reddit_preprocessed/test_unfunny.tsv', 'w') as f:
-        w = writer(f, delimiter='\t')
-        w.writerow(fields)
-        num = 0
-        for joke in unfunny:
-            if joke[0] != "":
-                w.writerow(joke)
-            else:
-                num += 1
-        print('There were ' + str(num) + ' unfunny jokes with empty bodies')
+    dir = '../datasets/data/reddit_preprocessed/'
+    files = ['funny.tsv', 'unfunny.tsv', 'test_funny.tsv', 'test_unfunny.tsv']
+    jokes = [funny, unfunny, test_funny, test_unfunny]
+    for file, joke_type in zip(files, jokes):
+        with open(dir + file, 'w') as f:
+            w = writer(f, delimiter='\t')
+            w.writerow(fields)
+            num = 0
+            for joke in joke_type:
+                if joke[0] != "":
+                    w.writerow(joke)
+                else:
+                    num += 1
+        print('There were ' + str(num) + ' jokes with empty bodies')
