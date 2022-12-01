@@ -47,7 +47,7 @@ def main(params):
     num_train_epochs = 5
     num_training_steps = num_train_epochs * len(tokenized_train)
     optimizer = AdamW(model.parameters())
-    # TODO: fiddle with the type of scheduler and see if results improve 
+    # TODO: fiddle with the type of scheduler and see if results improve (try linear)
     lr_scheduler = get_cosine_schedule_with_warmup(optimizer=optimizer, num_warmup_steps=0, num_training_steps=num_training_steps)
     training_args = Seq2SeqTrainingArguments(
         output_dir="./results",
