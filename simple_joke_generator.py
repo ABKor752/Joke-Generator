@@ -1,4 +1,4 @@
-from transformers import AdamW, AutoTokenizer, DataCollatorForSeq2Seq, AutoModelForSeq2SeqLM, Seq2SeqTrainingArguments, Seq2SeqTrainer, GPT2Tokenizer, GPT2LMHeadModel, get_scheduler, BartTokenizer, BartForConditionalGeneration, get_cosine_schedule_with_warmup
+from transformers import AdamW, AutoTokenizer, DataCollatorForSeq2Seq, AutoModelForSeq2SeqLM, Seq2SeqTrainingArguments, Seq2SeqTrainer, GPT2Tokenizer, GPT2LMHeadModel, get_scheduler, BartTokenizer, BartForConditionalGeneration, get_cosine_schedule_with_warmup, get_linear_schedule_with_warmup
 from datasets import load_dataset
 import torch
 from torch.utils.data import DataLoader
@@ -44,18 +44,19 @@ def main(params):
 
     data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer, model=model)
 
-    num_train_epochs = 5
+    num_train_epochs = 15
     num_training_steps = num_train_epochs * len(tokenized_train)
     optimizer = AdamW(model.parameters())
     # TODO: fiddle with the type of scheduler and see if results improve (try linear)
-    lr_scheduler = get_cosine_schedule_with_warmup(optimizer=optimizer, num_warmup_steps=0, num_training_steps=num_training_steps)
+    #lr_scheduler = get_cosine_schedule_with_warmup(optimizer=optimizer, num_warmup_steps=0, num_training_steps=num_training_steps)
+    lr_scheduler = get_linear_schedule_with_warmup(optimizer=optimizer, num_warmup_steps=0, num_training_steps=num_training_steps)
     training_args = Seq2SeqTrainingArguments(
-        output_dir="./results",
+        output_dir="./results1",
         evaluation_strategy="epoch",
-        learning_rate=2e-5,
+        learning_rate=6e-5,
         per_device_train_batch_size=2,
         per_device_eval_batch_size=2,
-        weight_decay=0.01,
+        weight_decay=0.02,
         save_total_limit=3,
         num_train_epochs=num_train_epochs,
     )
@@ -66,7 +67,7 @@ def main(params):
         eval_dataset=tokenized_train,
         tokenizer=tokenizer,
         data_collator=data_collator,
-        optimizers=(optimizer,lr_scheduler),
+#        optimizers=(optimizer,lr_scheduler),
     )
     
     trainer.train()
@@ -89,8 +90,10 @@ def main(params):
         predictions = [tokenizer.decode(prediction, skip_special_tokens=True).replace('\n', '').replace('.', '') for prediction in predictions]
         all_predictions.extend(list(predictions))
         references = [[actual.replace('\n', '').replace('.', '')] for actual in batch["punchline"]]
+        print('Body: ', batch["body"])
         print('Prediction: ', predictions)
         print('Reference: ', references)
+        print()
         metric.add_batch(predictions=predictions, references=references)
 
     score = metric.compute()

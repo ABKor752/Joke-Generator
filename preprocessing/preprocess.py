@@ -9,12 +9,12 @@ tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
 
 class Joke:
     def __init__(self, joke):
-        if joke.find('Edit :') != -1:
-            joke = joke[:joke.find('Edit :')]
-        if joke.find('EDIT :') != -1:
+        if joke.find('Edit:') != -1:
+            joke = joke[:joke.find('Edit:')]
+        if joke.find('EDIT:') != -1:
             joke = joke[:joke.find('EDIT:')]
-        if joke.find('edit :') != -1:
-            joke = joke[:joke.find('edit :')]
+        if joke.find('edit:') != -1:
+            joke = joke[:joke.find('edit:')]
         
         reddit_parts = joke.split('_____')
         reddit_title = reddit_parts[0]
@@ -49,19 +49,40 @@ def read_tsv(filename):
         funny = []
         unfunny = []
         for line in f:
-            line = line.replace('"', '').replace('”', '').replace('“', '').replace('&#x200B;', '').replace('&nbsp;', ' ').replace('’', "'").replace("‘", "'")
+            line = line.replace('"', '').replace('”', '').replace('“', '').replace('&#x200B;', '').replace('&nbsp;', ' ').replace('’', "'").replace("‘", "'").replace('„', '').replace('_____', ' _____ ')
             line = line.split(',', 3)
             if len(line[3]) >= 10 and (line[3][-10:-1] == '[removed]' or line[3][-10:-1] == '[deleted]'):
                 continue # Ignore reddit posts that have been removed
             line[3] = line[3].strip()
-            for c in string.punctuation:
-                if c != '_':
-                    line[3] = line[3].replace(c, ' ' + c + ' ')
+            #for c in string.punctuation:
+            #    if c != '_':
+            #        line[3] = line[3].replace(c, ' ' + c + ' ')
+            # Hack to deal with newlines not being read in properly from raw data.
+            # Could cause issues like "iPhone" -> "i Phone" but oh well
+            newline = ""
+            for word in line[3].split():
+                if len(word) == 1 or word[1].isupper():
+                    continue
+                else:
+                    first = True
+                    found = False
+                    for c in word:
+                        if c.isupper() and not first:
+                            newline += word[:word.find(c)] + ' ' + word[word.find(c):]
+                            print(word)
+                            print(word[:word.find(c)] + ' ' + word[word.find(c):])
+                            found = True
+                            break
+                        first = False
+                    if not found:
+                        newline += word + ' '
+                
+                
             if (line[1] == "0"):
-                joke = Joke(line[3].strip())
+                joke = Joke(newline.strip())
                 unfunny.append([joke.body, joke.punchline])
             else:
-                joke = Joke(line[3].strip())
+                joke = Joke(newline.strip())
                 funny.append([joke.body, joke.punchline])
         return funny, unfunny
 
