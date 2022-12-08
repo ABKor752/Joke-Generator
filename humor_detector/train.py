@@ -13,16 +13,19 @@ from sklearn.model_selection import train_test_split
 MODEL="bert-base-uncased"
 
 tokenizer = AutoTokenizer.from_pretrained(MODEL)
+metric = evaluate.load("accuracy")
+id2label = {0: "NEGATIVE", 1: "POSITIVE"}
+label2id = {"NEGATIVE": 0, "POSITIVE": 1}
 
 # TODO: aggregate and dataset-ify the reddit training data
 def get_datasets():
     def add_data(path, lst, label):
         with open(path, "r") as f:
             tsv_reader = csv.reader(f, delimiter='\t')
-            tsv_reader.next()
+            next(tsv_reader)
             for row in tsv_reader:
                 lst.append((row[0] + ' ' + row[1], label))
-    train = [], test = []
+    train, test = [], []
     PATH_TO_FUNNY_TRAIN = "../datasets/data/reddit_preprocessed/funny.tsv"
     PATH_TO_FUNNY_TEST = "../datasets/data/reddit_preprocessed/test_funny.tsv"
     PATH_TO_UNFUNNY_TRAIN = "../datasets/data/reddit_preprocessed/unfunny.tsv"
@@ -45,6 +48,7 @@ def get_datasets():
     test_encodings = tokenizer(test_jokes, truncation=True, padding=True)
     return train_encodings, train_labels, val_encodings, val_labels, test_encodings, test_labels
 
+# may need some printing to check hwat's going on here but hopefully it just works lol
 class JokeDataset(Dataset):
     def __init__(self, encodings, labels):
         self.encodings = encodings
@@ -62,27 +66,22 @@ class JokeDataset(Dataset):
 def preprocess_function(examples):
     return tokenizer(examples["joke"], truncation=True)
 
-data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
-
-metric = evaluate.load("accuracy")
-
 def compute_metrics(eval_pred):
     predictions, labels = eval_pred
     # check that this is the way to do it...
-    print(predictions)
-    print(F.softmax(predictions, dim=-1))
+    # print(predictions)
+    # print(F.softmax(predictions, dim=-1))
 
     predictions = np.argmax(predictions, axis=1)
     return metric.compute(predictions=predictions, references=labels)
-
-id2label = {0: "NEGATIVE", 1: "POSITIVE"}
-label2id = {"NEGATIVE": 0, "POSITIVE": 1}
 
 def main():
     train_encodings, train_labels, val_encodings, val_labels, test_encodings, test_labels = get_datasets()
     train = JokeDataset(train_encodings, train_labels)
     val = JokeDataset(val_encodings, val_labels)
     test = JokeDataset(test_encodings, test_labels)
+
+    data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
     model = AutoModelForSequenceClassification.from_pretrained(
         MODEL, num_labels=2, id2label=id2label, label2id=label2id
@@ -93,7 +92,7 @@ def main():
         learning_rate=2e-5,
         per_device_train_batch_size=2,
         per_device_eval_batch_size=2,
-        num_train_epochs=5,
+        num_train_epochs=7,
         weight_decay=0.01,
         evaluation_strategy="epoch",
         save_strategy="epoch",
@@ -113,6 +112,8 @@ def main():
     trainer.train()
     trainer.save_model("model.pt")
 
+if __name__ == '__main__':
+    main()
 
 """
 inference should look like this
@@ -120,5 +121,5 @@ inference should look like this
 classifier = pipeline("sentiment-analysis", model="model.pt")
 classifier(JokeDataset)
 
-can alternatively copy the format from hw3
+can alternatively copy the format from hw3 if huggingface doesn't let us classify on a whole dataset object
 """
