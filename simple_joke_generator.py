@@ -22,22 +22,27 @@ def load_data(train_file, test_file):
         tokenized_examples = tokenizer(examples['body'], text_target=examples['punchline'], padding='max_length', truncation=True, return_tensors='pt')
         return tokenized_examples
     
-    funny_train = load_dataset("csv", data_files=train_file, delimiter='\t', split='train')
+    funny_train = load_dataset("csv", data_files=train_file, delimiter='\t', split='train[:92%]')
+    funny_val = load_dataset("csv", data_files=train_file, delimiter='\t', split='train[92%:]')
     funny_test = load_dataset("csv", data_files=test_file, delimiter='\t', split='train')
 
     tokenized_train = funny_train.map(tokenize_function, batched=True)
     tokenized_train = tokenized_train.remove_columns(["body", "punchline"])
     tokenized_train.set_format("torch")
 
+    tokenized_val = funny_val.map(tokenize_function, batched=True)
+    tokenized_val = tokenized_val.remove_columns(["body", "punchline"])
+    tokenized_val.set_format("torch")
+
     tokenized_test = funny_test.map(tokenize_function, batched=True)
     tokenized_test.set_format("torch")
 
-    return tokenized_train, tokenized_test
+    return tokenized_train, tokenized_val, tokenized_test
 
 def main(params):
     train_file = params.train_file
     test_file = params.test_file
-    tokenized_train, tokenized_test = load_data(train_file, test_file)
+    tokenized_train, tokenized_val, tokenized_test = load_data(train_file, test_file)
 #     model = AutoModelForSeq2SeqLM.from_pretrained('t5-base')
     model = BartForConditionalGeneration.from_pretrained(MODEL_NAME)
     model.to(device)
@@ -64,7 +69,7 @@ def main(params):
         model=model,
         args=training_args,
         train_dataset=tokenized_train,
-        eval_dataset=tokenized_train,
+        eval_dataset=tokenized_val,
         tokenizer=tokenizer,
         data_collator=data_collator,
 #        optimizers=(optimizer,lr_scheduler),
