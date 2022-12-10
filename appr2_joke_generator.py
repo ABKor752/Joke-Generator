@@ -33,8 +33,6 @@ def load_data(train_file, test_file):
     funny_val = load_dataset("csv", data_files=train_file, delimiter='\t', split='train[98%:]')
     funny_test = load_dataset("csv", data_files=test_file, delimiter='\t', split='train')
 
-    print(funny_train)
-
     tokenized_train = funny_train.map(tokenize_function, batched=True)
     tokenized_train = tokenized_train.remove_columns(["body", "punchline", "humor_level"])
     tokenized_train.set_format("torch")
@@ -62,7 +60,6 @@ def main(params):
     num_train_epochs = 3
     num_training_steps = num_train_epochs * len(tokenized_train)
     optimizer = AdamW(model.parameters())
-    # TODO: fiddle with the type of scheduler and see if results improve (try linear)
     training_args = Seq2SeqTrainingArguments(
         output_dir="./results1",
         evaluation_strategy="epoch",
@@ -71,6 +68,7 @@ def main(params):
         per_device_eval_batch_size=2,
         weight_decay=0.02,
         save_total_limit=3,
+        save_strategy="epoch",
         num_train_epochs=num_train_epochs,
     )
     trainer = Seq2SeqTrainer(
