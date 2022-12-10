@@ -1,6 +1,8 @@
 import csv
 import random
-from transformers import pipeline
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
+import torch
+from torch.nn.functional import softmax
 
 NUM_PARAPHRASED_PUNCHLINES = 5
 PATH_TO_FUNNY_TRAIN = '../datasets/data/reddit_preprocessed/funny.tsv'
@@ -34,12 +36,12 @@ class QualityControlPipeline:
 
 # Meant for reading PREPROCESSED reddit datasets
 def read_tsv(filename):
+    tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
+
     with open(filename, "r") as f:
         paraphraser = QualityControlPipeline('sentences')
-        # TODO: make sure to get the LOGITS and not the discrete class!
-        # probably have to do it here and not in the loop through the tsv
-        humor_predictor = pipeline("sentiment-analysis", model=PATH_TO_HUMOR_DETECTION_MODEL)
-
+        humor_predictor = AutoModelForSequenceClassification.from_pretrained(PATH_TO_HUMOR_DETECTION_MODEL)
+        
         tsv_file = csv.reader(f, delimiter='\t')
         # skip header
         next(tsv_file)
@@ -49,10 +51,18 @@ def read_tsv(filename):
             inc = 0.5 / NUM_PARAPHRASED_PUNCHLINES
             for i in range(NUM_PARAPHRASED_PUNCHLINES):
                 new_punchline = paraphraser(line[1], lexical=0.2 + inc*i, syntactic=1 - inc*i, semantic=0.2 + inc*i)[0]['generated_text']
-                # print(new_punchline)
                 whole_joke = body + ' ' + new_punchline
-                # TODO: make sure to get the LOGITS and not the discrete class!
-                humor_level = humor_predictor(whole_joke)[0]['score'] if humor_predictor(whole_joke)[0]['label'] == 'POSITIVE' else 1 - humor_predictor(whole_joke)[0]['score']
+                # truncate to avoid overlong jokes for pipeline 
+                inputs = tokenizer(whole_joke, return_tensors="pt", truncation=True, padding=True)
+
+                with torch.no_grad():
+                    logits = softmax(humor_predictor(**inputs).logits)
+                    # print(logits)
+                    humor_level = logits.max().item() if logits.argmax().item() == 1 else 1 - logits.max().item()
+                    # print(humor_level)
+                    # print(humor_predictor.config.id2label[logits.argmax().item()])
+                # humor_level = humor_predictor(whole_joke)
+                # humor_level = humor_level[0]['score'] if humor_level[0]['label'] == 'POSITIVE' else 1 - humor_level[0]['score'] 
                 examples.append([body, new_punchline, humor_level])
         return examples
 
