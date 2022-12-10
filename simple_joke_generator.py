@@ -6,9 +6,15 @@ from torch.optim import AdamW
 from tqdm.auto import tqdm
 import pprint
 import evaluate
+import random
 import argparse
 
 SEED=595
+
+random.seed(SEED)
+torch.manual_seed(SEED)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed_all(SEED)
 
 MODEL_NAME="facebook/bart-base"
 
