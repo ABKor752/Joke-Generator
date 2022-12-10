@@ -10,7 +10,7 @@
 # set up job
 module load python3.9-anaconda  
 # pushd essentially sets pwd
-pushd /home/musicer/Joke-Generator/
+pushd /home/musicer/595/Joke-Generator/
 source activate jokes
 
 python3 appr2_joke_generator.py --train_file datasets/data/reddit_preprocessed/appr2/train.tsv --test_file datasets/data/reddit_preprocessed/appr2/test.tsv --model_file model_appr2_bart.torch
