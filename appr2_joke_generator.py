@@ -26,7 +26,11 @@ def load_data(train_file, test_file):
         prefixed_bodies = [example.split() for example in examples['body']]
         prefixed_bodies = [["{:.2f}".format(humor_level) + ' ' + word for word in prefixed_body] for humor_level, prefixed_body in zip(humor_levels, prefixed_bodies) ]
         prefixed_bodies = [' '.join(prefixed_body) for prefixed_body in prefixed_bodies]
-        tokenized_examples = tokenizer(prefixed_bodies, text_target=examples['punchline'], padding='max_length', truncation=True, return_tensors='pt')
+        rprefixed_bodies = ['Why did the chicken cross the road?' if body is None else body for body in prefixed_bodies]
+        # assert(not any(s == None for s in prefixed_bodies))
+        punchlines = ['To get to the other side' if punchline is None else punchline for punchline in examples['punchline']]
+        # assert(not any(s == None for s in punchlines))
+        tokenized_examples = tokenizer(prefixed_bodies, text_target=punchlines, padding='max_length', truncation=True, return_tensors='pt')
         return tokenized_examples
     
     funny_train = load_dataset("csv", data_files=train_file, delimiter='\t', split='train[:98%]')
@@ -61,7 +65,7 @@ def main(params):
     num_training_steps = num_train_epochs * len(tokenized_train)
     optimizer = AdamW(model.parameters())
     training_args = Seq2SeqTrainingArguments(
-        output_dir="./results1",
+        output_dir="./results2",
         evaluation_strategy="epoch",
         learning_rate=6e-5,
         per_device_train_batch_size=2,
