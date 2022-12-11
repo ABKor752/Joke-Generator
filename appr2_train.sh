@@ -14,3 +14,5 @@ pushd /home/musicer/595/Joke-Generator/
 source activate jokes
 
 python3 appr2_joke_generator.py --train_file datasets/data/reddit_preprocessed/appr2/train.tsv --test_file datasets/data/reddit_preprocessed/appr2/test.tsv --model_file model_appr2_bart.torch
+# this 3 is to set option for wandb, not sure if actually necessary
+3
