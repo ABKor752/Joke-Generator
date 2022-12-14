@@ -1,2 +1,3 @@
 # ignore kevin's virtual environment
 jokes/*
+humor_detector/model/*
